@@ -1,0 +1,40 @@
+cff-version: 1.2.0
+message: "If you use this work, please cite it using these metadata and also cite the original OPSSAT-AD dataset."
+title: "Beyond Earth: a FAIR, AI-ready spacecraft telemetry data product (ESA OPS-SAT)"
+type: software
+# TODO: replace with the real, agreed author list (given-names and family-names) before any Zenodo release.
+authors:
+  - given-names: "TODO"
+    family-names: "TODO"
+license: MIT
+repository-code: "https://github.com/priyansh963/Team-Iconic-DataManagement-Project-OPS-SAT"
+# Original sources (taken from the paper's own reference list; check the dataset DOI against the Zenodo page).
+references:
+  - type: article
+    title: "The OPS-SAT benchmark for detecting anomalies in satellite telemetry"
+    authors:
+      - family-names: "Ruszczak"
+        given-names: "Bogdan"
+      - family-names: "Kotowski"
+        given-names: "Krzysztof"
+      - family-names: "Evans"
+        given-names: "David"
+      - family-names: "Nalepa"
+        given-names: "Jakub"
+    journal: "Scientific Data"
+    volume: 12
+    year: 2025
+    doi: "10.1038/s41597-025-05035-3"
+  - type: dataset
+    title: "OPSSAT-AD - anomaly detection dataset for satellite telemetry"
+    authors:
+      - family-names: "Ruszczak"
+        given-names: "Bogdan"
+      - family-names: "Kotowski"
+        given-names: "Krzysztof"
+      - family-names: "Nalepa"
+        given-names: "Jakub"
+      - family-names: "Evans"
+        given-names: "David"
+    year: 2024
+    doi: "10.5281/zenodo.12588358"

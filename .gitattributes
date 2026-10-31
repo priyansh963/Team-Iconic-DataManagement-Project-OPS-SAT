@@ -1,2 +1,10 @@
 # Auto detect text files and perform LF normalization
 * text=auto
+
+# Binary files (never normalise line endings)
+*.tflx binary
+*.hyper binary
+*.pptx binary
+*.pdf binary
+*.png binary
+*.zip binary

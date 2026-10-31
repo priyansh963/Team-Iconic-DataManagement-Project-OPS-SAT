@@ -1,0 +1,10 @@
+# Ranges for now. After the first successful end-to-end run, replace with exact pins:
+#   pip freeze > requirements.lock.txt
+# The original paper used pandas 2.1.4, NumPy 1.26.2, SciPy 1.13.1.
+pandas>=2.1,<3
+numpy>=1.26,<3
+scipy>=1.11
+pyarrow>=14
+jupyterlab>=4
+matplotlib>=3.8
+pytest>=8
