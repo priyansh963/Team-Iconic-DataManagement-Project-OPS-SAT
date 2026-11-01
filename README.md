@@ -22,8 +22,8 @@ ZIP name: `DM_Project_Group<Nr>.zip`, uploaded by the group lead.
 
 ## Source data
 
-- Zenodo record used: https://zenodo.org/records/15108715 (version and licence: TODO, see `data/README.md`)
-- The original files are **not** stored in this repo. Download them into `data/raw/` and record checksums.
+- Zenodo record used: https://zenodo.org/records/15108715 (version DOI 10.5281/zenodo.15108715, latest version). Licence in the record metadata: CC BY 4.0; the record also bundles an MIT `LICENSE` from KP Labs. Details in `data/README.md`.
+- The original files are **not** stored in `data/raw/`. Download them there and record checksums. One exception: the packaged Tableau flow `tableau/opssat-cleaning-flow.tflx` embeds unmodified copies of both files (decision D-006, allowed by the licence with credit).
 
 ## Repository layout
 
@@ -56,5 +56,4 @@ pip install -r requirements.txt
 
 ## Licence
 
-Our code: MIT (`LICENSE`). The OPSSAT-AD data keeps its own licence and must be credited to its authors;
-any change we make to it must be described. Check the licence on the Zenodo record before redistributing any data.
+Our code: MIT (`LICENSE`). The OPSSAT-AD data is CC BY 4.0 per its Zenodo record and also carries an MIT notice from KP Labs (2024). Credit the authors, cite the record, say what we changed, and keep the KP Labs notice with any copied files.

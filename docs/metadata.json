@@ -1,15 +1,66 @@
 {
-  "_status": "Stub. Only facts taken from the paper are filled in; everything else is null until verified.",
+  "_status": "Draft. Values below were read from the Zenodo API and the paper on 2026-11-01. Fields still null need a decision or measurement.",
   "title": null,
   "source": {
-    "zenodo_record_in_brief": "https://zenodo.org/records/15108715",
-    "version_used": null,
-    "dataset_doi": "10.5281/zenodo.12588358",
+    "zenodo_record": "https://zenodo.org/records/15108715",
+    "version_doi": "10.5281/zenodo.15108715",
+    "concept_doi_all_versions": "10.5281/zenodo.12588358",
+    "record_created": "2025-03-30",
+    "original_publication_date": "2024-06-24",
+    "is_latest_version": true,
+    "access_right": "open",
+    "licence_in_record_metadata": "CC-BY-4.0",
+    "licence_file_in_record": "MIT, Copyright (c) 2024 KP Labs, covering software, data and documentation",
     "paper_doi": "10.1038/s41597-025-05035-3",
-    "licence_on_record": null
+    "code_repository": "https://github.com/kplabs-pl/OPS-SAT-AD",
+    "funder": "European Space Agency, grant 4000137339/22/NL/GLC/ov"
   },
-  "files": [],
-  "creators_original": ["Ruszczak, Bogdan", "Kotowski, Krzysztof", "Nalepa, Jakub", "Evans, David"],
-  "temporal_column": "timestamp (per paper, to be verified)",
-  "keywords": ["satellite telemetry", "anomaly detection", "OPS-SAT", "data quality"]
+  "files": [
+    {
+      "name": "segments.csv",
+      "bytes": 18987091,
+      "md5": "72f109630abb933a386106897a631188",
+      "rows": 303493
+    },
+    {
+      "name": "dataset.csv",
+      "bytes": 507550,
+      "md5": "5246fdc5e4630a4cecbf7fb6bc8b795e",
+      "rows": 2123
+    },
+    {
+      "name": "LICENSE",
+      "bytes": 1091,
+      "md5": "ea8befa9af2b37b7a54b5a16fc3712b0"
+    },
+    {
+      "name": "dataset_generator.ipynb",
+      "bytes": 8089,
+      "md5": "f0cdeb8f965715d326ebeb625362b71e"
+    },
+    {
+      "name": "modeling_examples.ipynb",
+      "bytes": 7174,
+      "md5": "044eeff4bf3c767326e3ffd12c3b7a09"
+    },
+    {
+      "name": "requirements.txt",
+      "bytes": 169,
+      "md5": "252b98857695f9695589f90a590a49e6"
+    }
+  ],
+  "creators_original": [
+    "Ruszczak, Bogdan",
+    "Kotowski, Krzysztof",
+    "Nalepa, Jakub",
+    "Evans, David"
+  ],
+  "temporal_column": "segments.csv: timestamp, ISO 8601 UTC with milliseconds (all 303,493 rows valid)",
+  "relationship": "segments.csv (points, parent) and dataset.csv (one derived feature row per segment, child), joined on segment; verified 0 orphans",
+  "keywords": [
+    "satellite telemetry",
+    "anomaly detection",
+    "OPS-SAT",
+    "data quality"
+  ]
 }
