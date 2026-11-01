@@ -37,4 +37,6 @@ references:
       - family-names: "Evans"
         given-names: "David"
     year: 2024
-    doi: "10.5281/zenodo.12588358"
+    doi: "10.5281/zenodo.15108715"
+    license: CC-BY-4.0
+    notes: "Version DOI used by this project. Concept DOI for all versions: 10.5281/zenodo.12588358."
