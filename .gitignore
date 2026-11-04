@@ -191,6 +191,7 @@ data/curated/*
 !data/**/.gitkeep
 !data/README.md
 !data/raw/CHECKSUMS.sha256
+!data/staging/CHECKSUMS.sha256
 
 # Tableau Prep: the .tflx flow IS a graded deliverable, so never ignore it.
 !*.tflx
