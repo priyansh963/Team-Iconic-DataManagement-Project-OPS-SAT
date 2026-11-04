@@ -2,6 +2,7 @@
 
 One row per change. Row counts must be measured, not estimated.
 Tableau Prep step and Python function should both appear so the parity check can be done.
+From 2026-11-04 the base data is `data/staging/segments_injected.csv` (SYNTHETIC nulls, see D-008 and `data/README.md`). Entries 1-9 were made on the original file; repairs of the injected nulls are logged below it with the Python function name.
 
 | # | Date | Owner | Table | Problem found (evidence) | Action | Prep step | Python function | Rows before | Rows after |
 |---|---|---|---|---|---|---|---|---|---|
