@@ -56,7 +56,7 @@ def quarantine_missing_timestamp(
 # ---------------------------------------------------------------- R4
 def recover_segment_constants(
     df: pd.DataFrame,
-    columns: tuple[str, ...] = IDENTIFIER_COLUMNS,
+    columns: list[str,] = list(IDENTIFIER_COLUMNS),
     by: str = "segment",
 ) -> pd.DataFrame:
     """R4: fill blanks in `columns` using the other rows of the same segment.
@@ -66,12 +66,9 @@ def recover_segment_constants(
     Changes: only blank cells in `columns`.
     Rows   : never changes the row count.
     Mirrors: Prep calculated fields with {FIXED [segment] : MIN/MAX(...)}.
-
-    TODO(Priyansh): implement. Tests: test_r4_* in tests/test_cleaning.py.
-
-
     """
-    raise NotImplementedError("R4")
+    filler = df.groupby(by=by)[columns].transform("first")
+    return df.fillna(filler)
 
 
 # ---------------------------------------------------------------- R5
@@ -87,10 +84,9 @@ def impute_value(
     Needs  : `value_col`, `by`.   Changes: only blank cells in `value_col`.
     Rows   : unchanged.
     Mirrors: Prep IFNULL([value], {FIXED [segment] : AVG([value])}).
-
-    TODO(Priyansh): implement. Tests: test_r5_* in tests/test_cleaning.py.
     """
-    raise NotImplementedError("R5")
+    imputer = df.groupby(by=by)[value_col].transform(method)
+    return df.fillna({value_col: imputer})
 
 
 # ---------------------------------------------------------------- R6
