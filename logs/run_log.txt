@@ -1,0 +1,17 @@
+=== run 2026-11-06T23:36:42Z ===
+code       : git 557039a
+stopped at : R7
+input      : data/staging/segments_injected.csv  sha256 352f6ab58aa9eef9db7979dbfa10f5f72457cdd3b7b273e47303554917e63030
+R1   remove_label                 rows  303493 -> 303493  quarantined     0  deleted 0
+R2   flag_missing_value           rows  303493 -> 303493  quarantined     0  deleted 0
+R3   quarantine_missing_timestamp rows  303493 -> 301976  quarantined  1517  deleted 0
+R4   recover_segment_constants    rows  301976 -> 301976  quarantined     0  deleted 0
+R5   impute_value                 rows  301976 -> 301976  quarantined     0  deleted 0
+R6   add_flags                    rows  301976 -> 301976  quarantined     0  deleted 0
+R7a  summarise_segments           rows  301976 -> 2123    quarantined     0  deleted 0
+R7b  compare_with_authors         rows    2123 -> 2123    quarantined     0  deleted 0
+accounting : 303493 raw = 301976 clean + 1517 quarantined + 0 deleted  OK
+output     : data/cleaned/segment_clean_py.csv  sha256 fb0c47b2d1b9b2564b9a1737fe70652e1011f2963b1912f9b0f6c1924931ba98
+output     : data/cleaned/quarantine_readings.csv  sha256 cc539d0a67d9a02562cc084f636be8a8a03f54a03a307bf6b29a760af39d622e
+output     : data/cleaned/segment_summary_py.csv  sha256 cc4221b13ae45dce0052fead588c11a51fc858892dfd6c39b51b456f6bea324c
+
