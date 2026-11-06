@@ -85,7 +85,10 @@ def impute_value(
     Rows   : unchanged.
     Mirrors: Prep IFNULL([value], {FIXED [segment] : AVG([value])}).
     """
-    imputer = df.groupby(by=by)[value_col].transform(method)
+    if method in ("mean", "median"):
+        imputer = df.groupby(by=by)[value_col].transform(method)
+    else:
+        raise ValueError(f"Can't impute with {method}")
     return df.fillna({value_col: imputer})
 
 
