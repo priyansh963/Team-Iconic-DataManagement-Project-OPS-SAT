@@ -118,10 +118,20 @@ def summarise_segments(df: pd.DataFrame) -> pd.DataFrame:
     Output columns: segment, channel, anomaly, train, sampling, n_readings,
     timestamp_min, timestamp_max, mean_value, n_zero, n_imputed.
     Mirrors: Prep Aggregate 1.
-
-    TODO(Priyansh): implement. Tests: test_r7_summarise_* in tests/test_cleaning.py.
     """
-    raise NotImplementedError("R7a")
+    summarizer = df.groupby("segment").agg(
+        channel=("channel", "first"),
+        anomaly=("anomaly", "first"),
+        train=("train", "first"),
+        sampling=("sampling", "first"),
+        n_readings=("segment", "count"),
+        timestamp_min=("timestamp", "min"),
+        timestamp_max=("timestamp", "max"),
+        mean_value=("value", "mean"),
+        n_zero=("is_zero", "sum"),
+        n_imputed=("value_imputed", "sum"),
+    )
+    return summarizer.reset_index()
 
 
 def compare_with_authors(summary: pd.DataFrame, authors: pd.DataFrame) -> pd.DataFrame:
