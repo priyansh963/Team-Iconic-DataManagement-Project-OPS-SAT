@@ -1,0 +1,8 @@
+column,cells_in_log,null_cells_measured,logged_cells_null_if_row_0based,logged_cells_null_if_row_1based
+channel,3035,3035,3035.0,37.0
+timestamp,1517,1517,1517.0,7.0
+value,6070,6070,6070.0,138.0
+sampling,3035,3035,3035.0,28.0
+anomaly,3035,3035,3035.0,32.0
+train,3035,3035,3035.0,46.0
+ALL_ROWS_WITH_A_NULL,19212,19212,,

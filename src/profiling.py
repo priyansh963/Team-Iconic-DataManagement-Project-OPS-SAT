@@ -204,3 +204,39 @@ def profile_dataset_summary(df):
         "train_counts": df["train"].value_counts(dropna=False).to_dict(),
         "channel_counts": df["channel"].value_counts(dropna=False).to_dict(),
     }
+
+def compare_with_injection_log(df, log_path):
+    """Compare measured nulls in df with the injection log (answer key).
+
+    Per column: cells listed in the log, null cells measured in df, how many
+    logged cells are null in df if `row` is 0-based and if it is 1-based.
+    """
+    import pandas as pd
+
+    df = df.reset_index(drop=True)
+    log = pd.read_csv(log_path)
+    rows = []
+    for col in df.columns:
+        sub = log[log["column"] == col]
+        measured = int(df[col].isna().sum())
+        if len(sub) == 0 and measured == 0:
+            continue
+        is_null = df[col].isna().to_numpy()
+        hit0 = int(sum(0 <= r < len(df) and is_null[r] for r in sub["row"]))
+        hit1 = int(sum(1 <= r <= len(df) and is_null[r - 1] for r in sub["row"]))
+        rows.append({
+            "column": col,
+            "cells_in_log": len(sub),
+            "null_cells_measured": measured,
+            "logged_cells_null_if_row_0based": hit0,
+            "logged_cells_null_if_row_1based": hit1,
+        })
+    out = pd.DataFrame(rows).set_index("column")
+    out.loc["ALL_ROWS_WITH_A_NULL"] = {
+        "cells_in_log": int(log["row"].nunique()),
+        "null_cells_measured": int(df.isna().any(axis=1).sum()),
+        "logged_cells_null_if_row_0based": None,
+        "logged_cells_null_if_row_1based": None,
+    }
+    out.attrs["duplicate_log_entries"] = int(log.duplicated(["row", "column"]).sum())
+    return out
