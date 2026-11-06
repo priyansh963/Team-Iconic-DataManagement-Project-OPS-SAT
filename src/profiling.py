@@ -183,3 +183,24 @@ def print_part_a(path):
     print(class_balance(df))
     print("== train/test split ==")
     print(train_test_split(df))
+
+def profile_dataset_summary(df):
+    """Profile the authors' summary table (one row per segment).
+
+    Returns rows, columns, nulls per column, duplicate segment ids,
+    and counts of anomaly and train. Works on text columns from load_segments.
+    """
+    nulls = df.isna().sum()
+    return {
+        "rows": int(len(df)),
+        "columns": int(df.shape[1]),
+        "column_names": list(df.columns),
+        "total_nulls": int(nulls.sum()),
+        "columns_with_nulls": {c: int(n) for c, n in nulls.items() if n > 0},
+        "distinct_segments": int(df["segment"].nunique()),
+        "duplicate_segment_ids": int(df["segment"].duplicated().sum()),
+        "full_row_duplicates": int(df.duplicated().sum()),
+        "anomaly_counts": df["anomaly"].value_counts(dropna=False).to_dict(),
+        "train_counts": df["train"].value_counts(dropna=False).to_dict(),
+        "channel_counts": df["channel"].value_counts(dropna=False).to_dict(),
+    }
