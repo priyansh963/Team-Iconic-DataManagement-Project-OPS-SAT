@@ -1,0 +1,99 @@
+{
+  "file": "data\\staging\\segments_injected.csv",
+  "shape": {
+    "rows": 303493,
+    "columns": 8,
+    "column_names": [
+      "channel",
+      "timestamp",
+      "value",
+      "label",
+      "sampling",
+      "anomaly",
+      "segment",
+      "train"
+    ]
+  },
+  "rows_with_any_null": 19212,
+  "placeholder_text": {
+    "channel": 0,
+    "timestamp": 0,
+    "value": 0,
+    "label": 0,
+    "sampling": 0,
+    "anomaly": 0,
+    "segment": 0,
+    "train": 0
+  },
+  "distinct_values": {
+    "label": {
+      "anomaly": 303493
+    },
+    "sampling": {
+      "1": 234756,
+      "5": 65702,
+      "NaN": 3035
+    },
+    "anomaly": {
+      "0": 201208,
+      "1": 99250,
+      "NaN": 3035
+    },
+    "train": {
+      "1": 222953,
+      "0": 77505,
+      "NaN": 3035
+    },
+    "channel": {
+      "CADC0873": 67622,
+      "CADC0872": 66150,
+      "CADC0874": 58114,
+      "CADC0892": 49294,
+      "CADC0894": 35169,
+      "CADC0884": 11688,
+      "CADC0888": 11516,
+      "NaN": 3035,
+      "CADC0890": 539,
+      "CADC0886": 366
+    }
+  },
+  "duplicates": {
+    "full_row_duplicates": 57,
+    "segment_timestamp_duplicates": 0
+  },
+  "timestamps": {
+    "missing": 1517,
+    "unparseable": 0,
+    "steps_measured": 298368,
+    "backwards_steps": 0,
+    "zero_steps": 0,
+    "steps_different_from_segment_mode": 1304,
+    "segments_with_irregular_step": 149,
+    "segments_with_gap_larger_than_mode": 147,
+    "largest_step_seconds": 130.0,
+    "earliest": "2022-01-04 20:00:50",
+    "latest": "2022-06-02 15:10:42"
+  },
+  "class_balance_anomaly": {
+    "rows": {
+      "0": 201208,
+      "1": 99250,
+      "NaN": 3035
+    },
+    "segments": {
+      "0": 1689,
+      "1": 434
+    }
+  },
+  "train_test_split": {
+    "rows": {
+      "1": 222953,
+      "0": 77505,
+      "NaN": 3035
+    },
+    "segments": {
+      "1": 1594,
+      "0": 529
+    }
+  }
+}
