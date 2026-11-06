@@ -144,7 +144,15 @@ def compare_with_authors(summary: pd.DataFrame, authors: pd.DataFrame) -> pd.Dat
       mean_ok   = 1 if mean_diff < 1e-12 else 0
       attr_ok   = 1 if channel, anomaly, train and sampling all match, else 0
     Mirrors: Prep Join 1 (full outer on segment) + Clean 3 parity checks.
-
-    TODO(Priyansh): implement. Tests: test_r7_compare_* in tests/test_cleaning.py.
     """
-    raise NotImplementedError("R7b")
+    m = summary.merge(authors, on="segment", how="outer", suffixes=("", "_a"))
+    out = pd.DataFrame({"segment": m["segment"]})
+    out["len_diff"] = m["n_readings"] - m["len"]
+    out["dur_diff"] = (m["timestamp_max"] - m["timestamp_min"]).dt.total_seconds() - m["duration"]
+    out["mean_diff"] = (m["mean_value"] - m["mean"]).abs()
+    out["mean_ok"] = (out["mean_diff"] < 1e-12).astype(int)
+    ok = True
+    for col in ("channel", "anomaly", "train", "sampling"):
+        ok = ok & (m[col] == m[col + "_a"])
+    out["attr_ok"] = ok.astype(int)
+    return out
