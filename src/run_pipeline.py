@@ -13,10 +13,16 @@ Writes: data/cleaned/segment_clean_py.csv        one row per reading
 import argparse
 import sys
 from pathlib import Path
-
 import pandas as pd
-
 import cleaning as c
+import argparse
+import hashlib
+import json
+import platform
+import subprocess
+import sys
+from datetime import datetime, timezone
+from pathlib import Path
 
 DTYPES = {
     "channel": "string",
@@ -69,6 +75,69 @@ def apply_split_step(
     )
     return clean
 
+def sha256_of(path: Path) -> str:
+    """Fingerprint of a file. Same bytes give the same text, always."""
+    h = hashlib.sha256()
+    with open(path, "rb") as f:
+        for block in iter(lambda: f.read(1 << 20), b""):
+            h.update(block)
+    return h.hexdigest()
+
+
+def git_state(root: Path) -> str:
+    """Short commit id of the code that ran, plus '(uncommitted changes)' if the tree is dirty."""
+    try:
+        commit = subprocess.run(
+            ["git", "rev-parse", "--short", "HEAD"],
+            cwd=root, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        dirty = subprocess.run(
+            ["git", "status", "--porcelain", "--", "src", "tests"],
+            cwd=root, capture_output=True, text=True, check=True,
+        ).stdout.strip()
+        return commit + (" (uncommitted changes)" if dirty else "")
+    except Exception:
+        return "unknown (git not available)"
+
+
+def write_run_log(root, run_id, code_state, input_path, last, log_df, n_raw, n_clean,
+                  n_quarantined, outputs) -> None:
+    """Append one readable block per run to logs/run_log.txt (never overwrite: that is the history)."""
+    lines = [
+        "=== run %s ===" % run_id,
+        "code       : git %s" % code_state,
+        "stopped at : R%d" % last,
+        "input      : %s  sha256 %s" % (input_path.relative_to(root).as_posix(), sha256_of(input_path)),
+    ]
+    for r in log_df.itertuples(index=False):
+        lines.append(
+            "%-4s %-28s rows %7d -> %-7d quarantined %5d  deleted %d"
+            % (r.rule, r.function, r.rows_before, r.rows_after, r.rows_quarantined, 0)
+        )
+    lines.append(
+        "accounting : %d raw = %d clean + %d quarantined + 0 deleted  OK" % (n_raw, n_clean, n_quarantined)
+    )
+    for out in outputs:
+        lines.append("output     : %s  sha256 %s" % (out.relative_to(root).as_posix(), sha256_of(out)))
+    log_dir = root / "logs"
+    log_dir.mkdir(exist_ok=True)
+    with open(log_dir / "run_log.txt", "a", encoding="utf-8", newline="\n") as f:
+        f.write("\n".join(lines) + "\n\n")
+
+
+def write_manifest(root, run_id, code_state, input_path, outputs, counts) -> None:
+    """Overwrite logs/MANIFEST.json: a machine-readable description of the latest run."""
+    manifest = {
+        "run_id": run_id,
+        "code": code_state,
+        "python": platform.python_version(),
+        "pandas": pd.__version__,
+        "input": {"path": input_path.relative_to(root).as_posix(), "sha256": sha256_of(input_path)},
+        "counts": counts,
+        "outputs": {o.relative_to(root).as_posix(): sha256_of(o) for o in outputs},
+    }
+    (root / "logs").mkdir(exist_ok=True)
+    (root / "logs" / "MANIFEST.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
 
 # (rule, function, returns (clean, quarantined)?)
 READING_STEPS = [
@@ -89,7 +158,10 @@ def main() -> None:
     root = Path(a.root)
     last = int(a.upto.lstrip("Rr"))
 
-    df = load_readings(root / "data" / "staging" / "segments_injected.csv")
+    run_id = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    code_state = git_state(root)
+    input_path = root / "data" / "staging" / "segments_injected.csv"
+    df = load_readings(input_path)
     n_raw = len(df)
     log: list = []
     quarantine: list = []
@@ -144,6 +216,19 @@ def main() -> None:
     log_df = pd.DataFrame(log)
     log_df.to_csv(out_dir / "pipeline_step_log.csv", index=False)
     print(log_df.to_string(index=False))
+    
+    # History: one block per run in logs/run_log.txt, latest run in logs/MANIFEST.json.
+    outputs = [out_dir / "segment_clean_py.csv"]
+    if quarantine:
+        outputs.append(out_dir / "quarantine_readings.csv")
+    if last >= 7:
+        outputs.append(out_dir / "segment_summary_py.csv")
+    write_run_log(root, run_id, code_state, input_path, last, log_df, n_raw, len(df), n_quarantined, outputs)
+    write_manifest(
+        root, run_id, code_state, input_path, outputs,
+        {"raw": n_raw, "clean": len(df), "quarantined": n_quarantined, "deleted": 0},
+    )
+    print("logged run %s -> logs/run_log.txt, logs/MANIFEST.json" % run_id)
 
 
 if __name__ == "__main__":
