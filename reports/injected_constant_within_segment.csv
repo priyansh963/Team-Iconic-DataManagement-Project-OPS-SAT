@@ -1,0 +1,5 @@
+,segments,with_more_than_one_value,with_all_cells_missing,with_some_cells_missing
+channel,2123,0,0,1219
+sampling,2123,0,0,1177
+anomaly,2123,0,0,1234
+train,2123,0,0,1187
