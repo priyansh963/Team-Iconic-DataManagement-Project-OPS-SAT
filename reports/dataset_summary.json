@@ -1,0 +1,53 @@
+{
+  "rows": 2123,
+  "columns": 23,
+  "column_names": [
+    "segment",
+    "anomaly",
+    "train",
+    "channel",
+    "sampling",
+    "duration",
+    "len",
+    "mean",
+    "var",
+    "std",
+    "kurtosis",
+    "skew",
+    "n_peaks",
+    "smooth10_n_peaks",
+    "smooth20_n_peaks",
+    "diff_peaks",
+    "diff2_peaks",
+    "diff_var",
+    "diff2_var",
+    "gaps_squared",
+    "len_weighted",
+    "var_div_duration",
+    "var_div_len"
+  ],
+  "total_nulls": 0,
+  "columns_with_nulls": {},
+  "distinct_segments": 2123,
+  "duplicate_segment_ids": 0,
+  "full_row_duplicates": 0,
+  "anomaly_counts": {
+    "0": 1689,
+    "1": 434
+  },
+  "train_counts": {
+    "1": 1594,
+    "0": 529
+  },
+  "channel_counts": {
+    "CADC0873": 593,
+    "CADC0872": 546,
+    "CADC0888": 252,
+    "CADC0892": 211,
+    "CADC0874": 194,
+    "CADC0884": 158,
+    "CADC0894": 144,
+    "CADC0890": 14,
+    "CADC0886": 11
+  }
+}
