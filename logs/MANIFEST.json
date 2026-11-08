@@ -1,0 +1,21 @@
+{
+  "run_id": "2026-11-08T00:09:30Z",
+  "code": "eeb310f",
+  "python": "3.14.2",
+  "pandas": "2.3.3",
+  "input": {
+    "path": "data/staging/segments_injected.csv",
+    "sha256": "352f6ab58aa9eef9db7979dbfa10f5f72457cdd3b7b273e47303554917e63030"
+  },
+  "counts": {
+    "raw": 303493,
+    "clean": 301976,
+    "quarantined": 1517,
+    "deleted": 0
+  },
+  "outputs": {
+    "data/cleaned/segment_clean_py.csv": "0abd844ccc9acfb944833586ba1365c22041b6f8e07de99f336aa464dc77ba06",
+    "data/cleaned/quarantine_readings.csv": "72fadbff672dd8cec2fb8a0c1b197834e7848fa4d28195066b85714d86855b27",
+    "data/cleaned/segment_summary_py.csv": "158e7773af073452d42272700a502d55c4dfcdba4ff41e8a0767eaea8e035759"
+  }
+}

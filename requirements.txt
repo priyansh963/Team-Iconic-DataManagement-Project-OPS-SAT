@@ -8,3 +8,4 @@ pyarrow>=14
 jupyterlab>=4
 matplotlib>=3.8
 pytest>=8
+pandera>=0.20,<1
