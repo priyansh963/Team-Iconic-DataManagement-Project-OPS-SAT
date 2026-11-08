@@ -1,0 +1,27 @@
+What the FAIR assessment showed
+
+Score of the original dataset: 6 / 8 (11.5 / 15 in detail)
+
+	Score	What it means
+F Findable	2	Easy to find: DOI, keywords, indexed on Zenodo and OpenAIRE
+A Accessible	2	Easy to get: open download, preserved by Zenodo
+I Interoperable	1	Hard to understand correctly: misleading label column, unexplained channel codes, no unit for value
+R Reusable	1	Hard to reuse safely: two licences, no codebook, a mistake in the paper (1,494 vs 1,594)
+
+The key conclusion:
+
+The data is easy to find and download, but someone using it straight away could easily make mistakes.
+
+For example, someone training a model on the label column would learn nothing, because it says “anomaly” on every row.
+
+What this means for your group’s question (“Can this data be trusted and fed into an AI model?”): not directly as downloaded. It’s trustworthy at the source (real ESA data, peer-reviewed, checksums match), but it needs documentation and cleaning first. That’s exactly what the rest of the project does.
+
+How FAIR connects to the other parts
+
+FAIR is the starting point: it says where the problems are. The other roles fix them:
+
+FAIR gap	Who fixes it
+Misleading label, zeros, irregular sampling	Profiling measures them, then Tableau Prep and the Pipeline clean them
+No codebook, missing units	Governance: the data dictionary
+Unclear history of changes	Governance: lineage; Pipeline: the run log and checksums
+Two licences	You: the licence statement (done)
