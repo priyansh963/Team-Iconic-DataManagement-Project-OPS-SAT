@@ -1,0 +1,648 @@
+# Data contract for the curated OPS-SAT warehouse.
+# Format: Open Data Contract Standard (ODCS) v3.0.2, https://bitol-io.github.io/open-data-contract-standard/
+# Where it lives in the repo: docs/data_contract.yaml
+#
+# What a data contract is, in one line: the written promise between the team that makes the data
+# (producer) and the people who use it (consumers): what the tables look like, what values are allowed,
+# what we check, and what we do NOT promise.
+#
+# Every number below was measured on the official run (logs/MANIFEST.json, run_id 2026-11-08T00:09:30Z)
+# and the rule values come from src/rules.py and src/load_warehouse.py.
+
+apiVersion: v3.0.2
+kind: DataContract
+id: opssat-curated-warehouse
+name: OPS-SAT curated warehouse
+version: 1.0.0
+status: draft   # change to "active" when the group has agreed on it
+domain: spacecraft-telemetry
+dataProduct: opssat-curated-warehouse
+tenant: SRH Heidelberg, Data Management group project (Team Iconic)
+contractCreatedTs: "2026-11-09T09:00:00Z"
+tags:
+  - opssat-ad
+  - telemetry
+  - anomaly-detection
+  - duckdb
+  - contains-synthetic-nulls
+
+description:
+  purpose: >
+    Cleaned, checked telemetry from the ESA OPS-SAT CubeSat, ready for analysis and for training
+    anomaly-detection models. Every reading that entered the pipeline is accounted for: it is either
+    in fact_reading or in quarantine_reading with a reason. Nothing is deleted.
+  usage: >
+    Machine-learning engineers read the view ml_training_set (one row per segment, the authors'
+    18 features plus class, n_readings and n_imputed). Analysts read fact_reading and
+    v_channel_overview. Governance reads quarantine_reading and load_log. Open the file read-only.
+  limitations: >
+    1) Blank values in the input are SYNTHETIC: we injected them (seed 42, "injected v1") because the
+    real data has none. 6,040 readings carry value_imputed = 1; their value is the mean of their own
+    segment. An imputed value repairs the shape of the data, not the lost measurement, so filter
+    on n_imputed when it matters.
+    2) 1,517 readings without a timestamp are in quarantine_reading, not in fact_reading.
+    3) Time coverage is uneven: about 85% of the readings are from June 2022, and none are from
+    March to May.
+    4) The nine channels sit on different scales (magnetometers about -1e-4 to 1e-4, photodiodes 0 to
+    about 1.57). Scale per channel before pooling them.
+    5) 15.4% of the original readings are exactly 0, mostly in photodiode channels. We keep them and flag them
+    with is_zero.
+    6) Training and test segments can share the same time span, so leakage between them is possible.
+    7) The unit of value is not stated in the source files.
+    8) Licence: the Zenodo record says CC BY 4.0 and the bundled LICENSE file says MIT (KP Labs). Use
+    needs credit to the authors, a citation of the record, a note of what we changed, and the KP Labs
+    notice.
+
+authoritativeDefinitions:
+  - type: businessDefinition
+    url: https://doi.org/10.1038/s41597-025-05035-3
+    description: Ruszczak, Kotowski, Evans and Nalepa, Scientific Data 12, 710 (2025). The source dataset paper.
+  - type: businessDefinition
+    url: https://zenodo.org/records/15108715
+    description: Zenodo record 10.5281/zenodo.15108715, the source files (segments.csv and dataset.csv).
+  - type: implementation
+    url: https://github.com/priyansh963/Team-Iconic-DataManagement-Project-OPS-SAT
+    description: Pipeline code, tests, run log and manifest.
+
+servers:
+  - server: warehouse
+    type: duckdb
+    environment: development
+    database: opssat
+    path: data/curated/opssat.duckdb
+    description: >
+      A generated file, not stored in Git. Rebuild it with "python src/run_pipeline.py" and then
+      "python src/load_warehouse.py" (about 7 s and 3 s). One writer, many readers.
+
+schema:
+  # ------------------------------------------------------------------ dim_channel
+  - name: dim_channel
+    physicalType: table
+    description: The nine channels and their sensor type. Source of the channel list is CHANNELS in src/rules.py.
+    properties:
+      - name: channel
+        logicalType: string
+        physicalType: VARCHAR
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Channel code.
+        logicalTypeOptions:
+          pattern: '^CADC0[0-9]{3}$'
+        examples: [CADC0872, CADC0886]
+        quality:
+          - type: library
+            rule: invalidValues
+            arguments:
+              validValues: [CADC0872, CADC0873, CADC0874, CADC0884, CADC0886, CADC0888, CADC0890, CADC0892, CADC0894]
+            mustBe: 0
+            unit: rows
+            dimension: conformity
+            description: Only the nine known channels.
+      - name: sensor_type
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: magnetometer for CADC0872, CADC0873, CADC0874; photodiode for the other six.
+    quality:
+      - type: library
+        rule: rowCount
+        mustBe: 9
+        dimension: completeness
+        description: Exactly nine channels.
+
+  # ------------------------------------------------------------------ dim_segment
+  - name: dim_segment
+    physicalType: table
+    description: One row per segment, a numbered fragment of telemetry from one channel. Channel, sampling, anomaly and train are constant inside a segment (checked by rule matches_segment_majority).
+    properties:
+      - name: segment
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Segment id, 1 to 2,123.
+      - name: channel
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: Foreign key to dim_channel.channel.
+        quality:
+          - type: sql
+            name: channel_exists_in_dim_channel
+            query: SELECT COUNT(*) FROM dim_segment s LEFT JOIN dim_channel c ON c.channel = s.channel WHERE c.channel IS NULL
+            mustBe: 0
+            dimension: consistency
+            description: Referential integrity, no orphan channels.
+      - name: sampling
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+        description: Sampling step in seconds.
+        quality:
+          - type: library
+            rule: invalidValues
+            arguments:
+              validValues: [1, 5]
+            mustBe: 0
+            unit: rows
+            dimension: conformity
+      - name: anomaly
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+        description: Expert label, 1 = anomalous segment, 0 = nominal. This is the target column.
+        quality:
+          - type: library
+            rule: invalidValues
+            arguments:
+              validValues: [0, 1]
+            mustBe: 0
+            unit: rows
+            dimension: conformity
+      - name: train
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+        description: 1 = training segment, 0 = test segment (the authors' split).
+        quality:
+          - type: library
+            rule: invalidValues
+            arguments:
+              validValues: [0, 1]
+            mustBe: 0
+            unit: rows
+            dimension: conformity
+      - name: class
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: Readable form of anomaly, "anomaly" or "nominal".
+        quality:
+          - type: library
+            rule: invalidValues
+            arguments:
+              validValues: [anomaly, nominal]
+            mustBe: 0
+            unit: rows
+            dimension: conformity
+    quality:
+      - type: library
+        rule: rowCount
+        mustBe: 2123
+        dimension: completeness
+        description: All 2,123 segments of the source dataset.
+      - type: sql
+        name: anomalous_segments
+        query: SELECT COUNT(*) FROM dim_segment WHERE anomaly = 1
+        mustBe: 434
+        dimension: accuracy
+        description: Matches the 434 anomalous segments in the authors' dataset.csv.
+
+  # ------------------------------------------------------------------ fact_reading
+  - name: fact_reading
+    physicalType: table
+    description: One row per cleaned telemetry reading. Accounting rule, always true -- raw rows = fact_reading + quarantine_reading + deleted, with deleted = 0 (303,493 = 301,976 + 1,517 + 0).
+    properties:
+      - name: reading_id
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Surrogate key created at load time. It is not stable across rebuilds of different input.
+      - name: segment
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+        description: Foreign key to dim_segment.segment.
+        quality:
+          - type: sql
+            name: segment_exists_in_dim_segment
+            query: SELECT COUNT(*) FROM fact_reading f LEFT JOIN dim_segment s ON s.segment = f.segment WHERE s.segment IS NULL
+            mustBe: 0
+            dimension: consistency
+            description: Referential integrity, no orphan readings.
+      - name: timestamp
+        logicalType: date
+        physicalType: TIMESTAMPTZ
+        required: true
+        description: Time of the reading, UTC, from 2022-01-04 to 2022-06-02. Rows without a timestamp are in quarantine_reading.
+        quality:
+          - type: sql
+            name: timestamp_in_source_period
+            query: SELECT COUNT(*) FROM fact_reading WHERE "timestamp" < TIMESTAMPTZ '2022-01-04 00:00:00+00' OR "timestamp" > TIMESTAMPTZ '2022-06-03 00:00:00+00'
+            mustBe: 0
+            dimension: accuracy
+      - name: value
+        logicalType: number
+        physicalType: DOUBLE
+        required: true
+        description: Measured value. Finite, never blank. Unit not stated in the source. Check value_imputed before trusting it.
+        quality:
+          - type: sql
+            name: value_is_finite
+            query: SELECT COUNT(*) FROM fact_reading WHERE NOT isfinite(value)
+            mustBe: 0
+            dimension: conformity
+          - type: sql
+            name: value_within_measured_range
+            query: SELECT COUNT(*) FROM fact_reading WHERE value < -0.0002 OR value > 1.6
+            mustBe: 0
+            dimension: accuracy
+            severity: warning
+            description: Measured range on the official run is -0.000101 to 1.5708. A wider value is a warning, not a stop.
+      - name: value_imputed
+        logicalType: integer
+        physicalType: TINYINT
+        required: true
+        description: 1 if the value was blank in the input and was filled with the mean of its segment (6,040 rows), else 0.
+        quality:
+          - type: library
+            rule: invalidValues
+            arguments:
+              validValues: [0, 1]
+            mustBe: 0
+            unit: rows
+            dimension: conformity
+      - name: is_zero
+        logicalType: integer
+        physicalType: TINYINT
+        required: true
+        description: 1 if value is exactly 0 (45,514 rows). Zeros may be a physical floor of the photodiodes, so they are flagged and kept.
+        quality:
+          - type: library
+            rule: invalidValues
+            arguments:
+              validValues: [0, 1]
+            mustBe: 0
+            unit: rows
+            dimension: conformity
+      - name: source_file
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: File the row came from (lineage). On the official run, segments_injected.csv.
+    quality:
+      - type: library
+        rule: rowCount
+        mustBe: 301976
+        dimension: completeness
+        description: Rows on the official run. A new run with different input may differ; the accounting rule below must always hold.
+      - type: sql
+        name: no_duplicate_segment_timestamp
+        query: SELECT COUNT(*) FROM (SELECT segment, "timestamp" FROM fact_reading GROUP BY 1, 2 HAVING COUNT(*) > 1)
+        mustBe: 0
+        dimension: uniqueness
+        description: A segment never has two readings at the same time (rule unique=[segment, timestamp] in src/rules.py).
+      - type: sql
+        name: accounting_raw_equals_clean_plus_quarantined
+        query: SELECT (SELECT row_count FROM load_log WHERE table_name = 'fact_reading') + (SELECT row_count FROM load_log WHERE table_name = 'quarantine_reading') - 303493
+        mustBe: 0
+        dimension: completeness
+        description: raw rows = clean + quarantined, with nothing deleted. The loader also checks this against logs/MANIFEST.json and refuses to load if it fails.
+
+  # ------------------------------------------------------------------ quarantine_reading
+  - name: quarantine_reading
+    physicalType: table
+    description: Readings that broke a validation rule and were set aside with the reason. They are kept, never deleted. Most columns may be blank, because the reason is often a blank.
+    properties:
+      - name: quarantine_id
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Surrogate key created at load time.
+      - name: segment
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+      - name: timestamp
+        logicalType: date
+        physicalType: TIMESTAMPTZ
+        required: false
+        description: Blank for the 1,517 rows quarantined for a missing timestamp.
+      - name: channel
+        logicalType: string
+        physicalType: VARCHAR
+        required: false
+      - name: value
+        logicalType: number
+        physicalType: DOUBLE
+        required: false
+      - name: sampling
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+      - name: anomaly
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+      - name: train
+        logicalType: integer
+        physicalType: INTEGER
+        required: false
+      - name: value_imputed
+        logicalType: integer
+        physicalType: TINYINT
+        required: false
+      - name: is_zero
+        logicalType: integer
+        physicalType: TINYINT
+        required: false
+      - name: class
+        logicalType: string
+        physicalType: VARCHAR
+        required: false
+      - name: reason
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+        description: >
+          Why the row was set aside. "missing timestamp" for rows without a time. Validation failures read
+          "validation: <column>: <rule>" and list every rule the row broke (known_channel, sampling_1_or_5,
+          anomaly_0_or_1, train_0_or_1, value_is_finite, matches_segment_majority, duplicate segment +
+          timestamp, not nullable).
+        examples: [missing timestamp]
+      - name: source_file
+        logicalType: string
+        physicalType: VARCHAR
+        required: false
+    quality:
+      - type: library
+        rule: rowCount
+        mustBe: 1517
+        dimension: completeness
+        description: Rows on the official run, all with the reason "missing timestamp".
+      - type: sql
+        name: every_row_has_a_reason
+        query: SELECT COUNT(*) FROM quarantine_reading WHERE reason IS NULL OR trim(reason) = ''
+        mustBe: 0
+        dimension: completeness
+
+  # ------------------------------------------------------------------ segment_summary
+  - name: segment_summary
+    physicalType: table
+    description: One row per segment, computed by the pipeline from the cleaned readings and compared with the authors' own table (parity check).
+    properties:
+      - name: segment
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+        description: Foreign key to dim_segment.segment.
+      - name: n_readings
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+        description: Cleaned readings in the segment (at least 8 on the official run).
+      - name: timestamp_min
+        logicalType: date
+        physicalType: TIMESTAMPTZ
+        required: false
+      - name: timestamp_max
+        logicalType: date
+        physicalType: TIMESTAMPTZ
+        required: false
+      - name: mean_value
+        logicalType: number
+        physicalType: DOUBLE
+        required: false
+      - name: n_zero
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+      - name: n_imputed
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+        description: Readings in the segment whose value was filled (6,040 in total). Use it to filter out weakly repaired segments.
+      - name: len_diff
+        logicalType: number
+        physicalType: DOUBLE
+        required: false
+        description: Our reading count minus the authors' len. Not 0 in 869 segments, because of quarantined rows.
+      - name: dur_diff
+        logicalType: number
+        physicalType: DOUBLE
+        required: false
+        description: Our duration minus the authors' duration. Not 0 in 26 segments.
+      - name: mean_diff
+        logicalType: number
+        physicalType: DOUBLE
+        required: false
+      - name: mean_ok
+        logicalType: integer
+        physicalType: TINYINT
+        required: false
+        description: 1 if our mean matches the authors' mean. 484 segments match, 1,639 differ (869 lost rows, 770 had a filled value).
+      - name: attr_ok
+        logicalType: integer
+        physicalType: TINYINT
+        required: false
+        description: 1 if channel, sampling, anomaly and train match the authors' table. 1 in all 2,123 segments.
+        quality:
+          - type: sql
+            name: attributes_fully_recovered
+            query: SELECT COUNT(*) FROM segment_summary WHERE attr_ok <> 1
+            mustBe: 0
+            dimension: accuracy
+            description: The four attributes are recovered correctly in every segment.
+    quality:
+      - type: library
+        rule: rowCount
+        mustBe: 2123
+        dimension: completeness
+
+  # ------------------------------------------------------------------ ml_training_set
+  - name: ml_training_set
+    physicalType: view
+    description: >
+      The view for machine-learning engineers. One row per segment: the authors' 18 features
+      (duration, len, mean, var, std, kurtosis, skew, n_peaks, smooth10_n_peaks, smooth20_n_peaks,
+      diff_peaks, diff2_peaks, diff_var, diff2_var, gaps_squared, len_weighted, var_div_duration,
+      var_div_len) plus our class, n_readings and n_imputed. Use train = 1 for training and train = 0
+      for testing. 1,594 training and 529 test segments.
+    properties:
+      - name: segment
+        logicalType: integer
+        physicalType: INTEGER
+        primaryKey: true
+        primaryKeyPosition: 1
+        required: true
+        unique: true
+      - name: channel
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+      - name: sampling
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+      - name: anomaly
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+        description: Target column. Use this one, never the old label column (it said "anomaly" on every row and was removed).
+      - name: train
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+      - name: class
+        logicalType: string
+        physicalType: VARCHAR
+        required: true
+      - name: n_readings
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+      - name: n_imputed
+        logicalType: integer
+        physicalType: INTEGER
+        required: true
+      - name: duration
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: len
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: mean
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: var
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: std
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: kurtosis
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: skew
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: n_peaks
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: smooth10_n_peaks
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: smooth20_n_peaks
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: diff_peaks
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: diff2_peaks
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: diff_var
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: diff2_var
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: gaps_squared
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: len_weighted
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: var_div_duration
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+      - name: var_div_len
+        logicalType: number
+        required: false
+        description: Feature computed by the authors (see docs/data_dictionary.md).
+    quality:
+      - type: library
+        rule: rowCount
+        mustBe: 2123
+        dimension: completeness
+      - type: sql
+        name: train_test_split
+        query: SELECT COUNT(*) FROM ml_training_set WHERE train = 1
+        mustBe: 1594
+        dimension: accuracy
+        description: 1,594 training segments, the rest (529) are test.
+
+team:
+  - name: Priyansh
+    role: Data product owner (reproducible pipeline and warehouse)
+  - name: Aditya
+    role: Dataset and FAIR (source, licence, metadata record)
+  - name: Anirudh
+    role: Profiling and quality
+  - name: Kalaivani
+    role: Tableau Prep cleaning flow
+  - name: Shruthi
+    role: Governance and integration (dictionary, lineage, risks)
+
+support:
+  - channel: github
+    url: https://github.com/priyansh963/Team-Iconic-DataManagement-Project-OPS-SAT/issues
+    description: Questions and change requests. Changes to a rule go through a pull request (decision D-004).
+    tool: other
+
+roles:
+  - role: ml_engineer
+    access: read
+    description: Reads ml_training_set and segment_summary.
+  - role: analyst
+    access: read
+    description: Reads fact_reading, dim_segment, dim_channel and v_channel_overview.
+  - role: governance
+    access: read
+    description: Reads quarantine_reading and load_log.
+  - role: pipeline_owner
+    access: write
+    description: Rebuilds the file with src/load_warehouse.py. Only one writer at a time.
+
+slaProperties:
+  - property: frequency
+    value: on demand
+    description: The file is rebuilt from scratch whenever the pipeline is rerun. There is no schedule.
+  - property: latency
+    value: 10
+    unit: s
+    description: About 7 s for the pipeline and about 3 s for the warehouse load, on the project laptop.
+  - property: retention
+    value: 1
+    unit: y
+    description: Kept with the repository and the Zenodo source until the project is archived (assumption, to confirm with the professor).
+
+customProperties:
+  - property: reproducibility
+    value: "Same input and code give the same output (SHA-256 checked). 53 automated tests. Tags injected-v1 and pipeline-v1."
+  - property: breaking_change_policy
+    value: "A change to a column name or type, an allowed value, or a rule reaction raises the major version. A new column or table raises the minor version."
+  - property: synthetic_data
+    value: "Blank values in the input are synthetic (seed 42, injected v1). Real data has none."
+  - property: input_checksum_sha256
+    value: 352f6ab58aa9eef9db7979dbfa10f5f72457cdd3b7b273e47303554917e63030
